@@ -37,6 +37,9 @@ for event_id in events:
         data_dump = pickle.load(f)
 
     bilby_ifos = data_dump.interferometers
+    freq_mask = bilby_ifos[0].frequency_mask
+    for ifo in bilby_ifos:
+        freq_mask *= ifo.frequency_mask
 
     sampling_frequency = float(data_dump.meta_data['command_line_args']['sampling_frequency'])
     reference_frequency = float(data_dump.meta_data['command_line_args']['reference_frequency'])
@@ -60,7 +63,8 @@ for event_id in events:
         bilby_ifo = bilby_ifos[i]
         assert bilby_ifo.name == ifo_name, f"{bilby_ifo.name = } != {ifo_name = }"
 
-        freq_mask = bilby_ifo.frequency_mask
+        # Opt for the global frequency mask instead
+        # freq_mask = bilby_ifo.frequency_mask
 
         print("Adding interferometer ", ifo_name)
         eval(f'jim_ifos.append({ifo_name})')
@@ -143,7 +147,15 @@ for event_id in events:
     event_dict[event_id] = diff_logLs
 
     # Plot the likelihood comparison
-    fig, axes = plt.subplots(1, 2, figsize=(3.4 * 2.3, 3.4))
+    fig, axes = plt.subplots(1, 2, figsize=(3.4 * 2.3, 3.6),
+                             constrained_layout=True)
+
+    for ax in axes:
+        ax.set_xlabel(r'$\ln {\cal L}_{\rm Bilby}$')
+        ax.plot(logL_min_max, logL_min_max, color="black", linestyle="--", lw=1., label="1:1")
+        ax.set_xlim(*logL_min_max)
+        ax.set_ylim(*logL_min_max)
+        ax.grid(False)
 
     ax = axes[0]
     scat = ax.scatter(
@@ -162,13 +174,6 @@ for event_id in events:
     )
     ax.set_title(f'Use strain duration = {strain_duration:.6f} s')
 
-    for ax in axes:
-        ax.set_xlabel(r'$\ln {\cal L}_{\rm Bilby}$')
-
-    ax.plot(logL_min_max, logL_min_max, color="black", linestyle="--", lw=1., label="1:1")
-    ax.set_xlim(*logL_min_max)
-    ax.set_ylim(*logL_min_max)
-
     cbar = fig.colorbar(scat, ax=ax)
     cbar.set_label(r'$ \Delta \ln {\cal L} = \ln {\cal L}_{\rm Bilby} - \ln {\cal L}_{\rm Jim}$')
 
@@ -176,7 +181,14 @@ for event_id in events:
     fig.savefig(f'figures/compare_{event_id}_likelihoods.png', dpi=300)
 
 # Plot the likelihood comparison for all events
-fig, axes = plt.subplots(1, 2, figsize=(3.4 * 2.3, 3.4))
+fig, axes = plt.subplots(1, 2, figsize=(3.4 * 2.3, 3.6))
+
+event_logL_min_max = (event_logL_min, event_logL_max)
+for ax in axes:
+    ax.set_xlabel(r'$\ln {\cal L}_{\rm Bilby}$')
+    ax.plot(event_logL_min_max, event_logL_min_max, color="black", linestyle="--", lw=1., label="1:1")
+    ax.set_xlim(*event_logL_min_max)
+    ax.set_ylim(*event_logL_min_max)
 
 scat_kwargs = dict(
         cmap='RdYlBu', s=5, alpha=0.9, marker=".",
@@ -199,13 +211,6 @@ for event, diff_logLs in event_dict.items():
 axes[0].set_ylabel(r"$\ln{\cal L}_{\rm Jim}$")
 axes[0].set_title(f'Use input duration = {duration:.6f} s')
 axes[1].set_title(f'Use strain duration = {strain_duration:.6f} s')
-for ax in axes:
-    ax.set_xlabel(r'$\ln {\cal L}_{\rm Bilby}$')
-
-event_logL_min_max = (event_logL_min, event_logL_max)
-ax.plot(event_logL_min_max, event_logL_min_max, color="black", linestyle="--", lw=1., label="1:1")
-ax.set_xlim(*event_logL_min_max)
-ax.set_ylim(*event_logL_min_max)
 
 cbar = fig.colorbar(scat, ax=axes[1])
 cbar.set_label(r'$ \Delta \ln {\cal L} = \ln {\cal L}_{\rm Bilby} - \ln {\cal L}_{\rm Jim}$')
