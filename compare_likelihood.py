@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import os, sys
 os.environ['JAX_PLATFORMS'] = 'cpu'
 from pathlib import Path
@@ -51,7 +52,7 @@ for event_id in events:
     strain_duration = strain_end_time - strain_start_time
     strain_post_trigger_duration = strain_end_time - trigger_time
     print(f"{strain_duration = :.6f}")
-    
+
     ifos_list_str = data_dump.interferometers.meta_data.keys()
 
     jim_ifos: list[GroundBased2G] = []
@@ -62,7 +63,7 @@ for event_id in events:
         freq_mask = bilby_ifo.frequency_mask
 
         print("Adding interferometer ", ifo_name)
-        eval(f'ifos.append({ifo_name})')
+        eval(f'jim_ifos.append({ifo_name})')
 
         jim_ifos[i].frequencies = bilby_ifo.frequency_array[freq_mask]
         jim_ifos[i].data = bilby_ifo.frequency_domain_strain[freq_mask]
@@ -71,12 +72,12 @@ for event_id in events:
     waveform = RippleIMRPhenomPv2(f_ref=reference_frequency)
 
     likelihood_1 = TransientLikelihoodFD(
-        jim_ifos, waveform=waveform, trigger_time=trigger_time, 
+        jim_ifos, waveform=waveform, trigger_time=trigger_time,
         duration=duration, post_trigger_duration=post_trigger_duration
     )
 
     likelihood_2 = TransientLikelihoodFD(
-        jim_ifos, waveform=waveform, trigger_time=trigger_time, 
+        jim_ifos, waveform=waveform, trigger_time=trigger_time,
         duration=strain_duration, post_trigger_duration=strain_post_trigger_duration
     )
 
@@ -130,8 +131,8 @@ for event_id in events:
     diff_2 = diff_logLs["logL_bilby"] - diff_logLs["logL_jim_2"]
     max_abs_diff = np.max(np.abs([diff_1, diff_2]))
 
-    logL_min = np.min(diff_logLs[['logL_bilby', 'logL_jim_1', 'logL_jim_2']])
-    logL_max = np.max(diff_logLs[['logL_bilby', 'logL_jim_1', 'logL_jim_2']])
+    logL_min = np.min([diff_logLs[key] for key in ['logL_bilby', 'logL_jim_1', 'logL_jim_2']])
+    logL_max = np.max([diff_logLs[key] for key in ['logL_bilby', 'logL_jim_1', 'logL_jim_2']])
     logL_min_max = (logL_min, logL_max)
 
     # Update global logL min max.
@@ -140,13 +141,13 @@ for event_id in events:
     event_max_abs_diff = max(event_max_abs_diff, max_abs_diff)
     # Save result to event dict.
     event_dict[event_id] = diff_logLs
-    
+
     # Plot the likelihood comparison
     fig, axes = plt.subplots(1, 2, figsize=(3.4 * 2.3, 3.4))
 
     ax = axes[0]
     scat = ax.scatter(
-        diff_logLs['logL_bilby'], diff_logLs["logL_jim_1"], 
+        diff_logLs['logL_bilby'], diff_logLs["logL_jim_1"],
         c=diff_1, cmap='RdBu_r', s=5, alpha=0.9,
         vmin=-max_abs_diff, vmax=max_abs_diff
     )
@@ -155,7 +156,7 @@ for event_id in events:
 
     ax = axes[1]
     ax.scatter(
-        diff_logLs['logL_bilby'], diff_logLs["logL_jim_2"], 
+        diff_logLs['logL_bilby'], diff_logLs["logL_jim_2"],
         c=diff_2, cmap='RdBu_r', s=5, alpha=0.9,
         vmin=-max_abs_diff, vmax=max_abs_diff
     )
@@ -184,14 +185,14 @@ scat_kwargs = dict(
 for event, diff_logLs in event_dict.items():
     ax = axes[0]
     scat = ax.scatter(
-        diff_logLs['logL_bilby'], diff_logLs["logL_jim_1"], 
-        c=diff_logLs['logL_jim_1'] - diff_logLs["logL_bilby"], 
+        diff_logLs['logL_bilby'], diff_logLs["logL_jim_1"],
+        c=diff_logLs['logL_jim_1'] - diff_logLs["logL_bilby"],
         **scat_kwargs
     )
     ax = axes[1]
     ax.scatter(
-        diff_logLs['logL_bilby'], diff_logLs["logL_jim_2"], 
-        c=diff_logLs['logL_jim_2'] - diff_logLs["logL_bilby"], 
+        diff_logLs['logL_bilby'], diff_logLs["logL_jim_2"],
+        c=diff_logLs['logL_jim_2'] - diff_logLs["logL_bilby"],
         **scat_kwargs
     )
 
