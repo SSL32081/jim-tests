@@ -101,7 +101,7 @@ for event_id in events:
         frequency_domain_source_model=lal_binary_black_hole,
         waveform_arguments=dict(
             waveform_approximant="IMRPhenomPv2",
-            reference_frequency=20,
+            reference_frequency=reference_frequency,
             minimum_frequency=f_min,
         )
     )
