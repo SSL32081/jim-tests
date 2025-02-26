@@ -185,9 +185,10 @@ for event_id in events:
 
     fig.suptitle(event_id)
     fig.savefig(f'figures/compare_{event_id}_likelihoods.png', dpi=300)
+    plt.close(fig)
 
 # Plot the likelihood comparison for all events
-fig, axes = plt.subplots(1, 2, figsize=(3.4 * 2.3, 3.6))
+fig, axes = plt.subplots(1, 2, figsize=(3.4 * 2.3, 3.6), constrained_layout=True)
 
 event_logL_min_max = (event_logL_min, event_logL_max)
 for ax in axes:
@@ -215,8 +216,8 @@ for event, diff_logLs in event_dict.items():
     )
 
 axes[0].set_ylabel(r"$\ln{\cal L}_{\rm Jim}$")
-axes[0].set_title(f'Use input duration = {duration:.6f} s')
-axes[1].set_title(f'Use strain duration = {strain_duration:.6f} s')
+axes[0].set_title(f'Use input duration')
+axes[1].set_title(f'Use strain duration')
 
 cbar = fig.colorbar(scat, ax=axes[1])
 cbar.set_label(r'$ \Delta \ln {\cal L} = \ln {\cal L}_{\rm Bilby} - \ln {\cal L}_{\rm Jim}$')
