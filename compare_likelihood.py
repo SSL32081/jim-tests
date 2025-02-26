@@ -41,6 +41,12 @@ for event_id in events:
     for ifo in bilby_ifos:
         freq_mask *= ifo.frequency_mask
 
+    f_min = ifo.frequency_array[freq_mask][0]
+    ## Needs to reset Bilby ifos too
+    for ifo in bilby_ifos:
+        ifo.frequency_mask = freq_mask
+        ifo.minimum_frequency = f_min
+
     sampling_frequency = float(data_dump.meta_data['command_line_args']['sampling_frequency'])
     reference_frequency = float(data_dump.meta_data['command_line_args']['reference_frequency'])
     trigger_time = data_dump.trigger_time
@@ -96,7 +102,7 @@ for event_id in events:
         waveform_arguments=dict(
             waveform_approximant="IMRPhenomPv2",
             reference_frequency=20,
-            minimum_frequency=20,
+            minimum_frequency=f_min,
         )
     )
 
