@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import os
 os.environ['JAX_PLATFORMS'] = 'cpu'
+os.environ["PATH"] = "/home/samson.leong/texlive/2023/bin/x86_64-linux:" + os.environ["PATH"]
 import pickle
 from pathlib import Path
 import numpy as np
