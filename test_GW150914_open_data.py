@@ -89,8 +89,10 @@ likelihood_bilby = GravitationalWaveTransient(
 )
 
 ## Start sampling from the bilby posterior samples
-n_samples = 100
-samples_bilby = bilby_poste.sample(n_samples, random_state=42)
+# n_samples = 100
+# samples_bilby = bilby_poste.sample(n_samples, random_state=42)
+n_samples = len(bilby_poste)
+samples_bilby = bilby_poste
 
 keys = ["chirp_mass", "symmetric_mass_ratio", "spin_1x", "spin_1y", "spin_1z", "spin_2x", "spin_2y", "spin_2z", "iota", "luminosity_distance", "phase", "psi", "ra", "dec"]
 jim_keys = ["M_c", "eta", "s1_x", "s1_y", "s1_z", "s2_x", "s2_y", "s2_z", "iota", "d_L", "phase_c", "psi", "ra", "dec"]
