@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import os, sys
 os.environ['JAX_PLATFORMS'] = 'cpu'
 from pathlib import Path
@@ -36,6 +37,15 @@ for event_id in events:
         data_dump = pickle.load(f)
 
     bilby_ifos = data_dump.interferometers
+    freq_mask = bilby_ifos[0].frequency_mask
+    for ifo in bilby_ifos:
+        freq_mask *= ifo.frequency_mask
+
+    f_min = ifo.frequency_array[freq_mask][0]
+    ## Needs to reset Bilby ifos too
+    for ifo in bilby_ifos:
+        ifo.frequency_mask = freq_mask
+        ifo.minimum_frequency = f_min
 
     sampling_frequency = float(data_dump.meta_data['command_line_args']['sampling_frequency'])
     reference_frequency = float(data_dump.meta_data['command_line_args']['reference_frequency'])
@@ -51,7 +61,7 @@ for event_id in events:
     strain_duration = strain_end_time - strain_start_time
     strain_post_trigger_duration = strain_end_time - trigger_time
     print(f"{strain_duration = :.6f}")
-    
+
     ifos_list_str = data_dump.interferometers.meta_data.keys()
 
     jim_ifos: list[GroundBased2G] = []
@@ -59,10 +69,11 @@ for event_id in events:
         bilby_ifo = bilby_ifos[i]
         assert bilby_ifo.name == ifo_name, f"{bilby_ifo.name = } != {ifo_name = }"
 
-        freq_mask = bilby_ifo.frequency_mask
+        # Opt for the global frequency mask instead
+        # freq_mask = bilby_ifo.frequency_mask
 
         print("Adding interferometer ", ifo_name)
-        eval(f'ifos.append({ifo_name})')
+        eval(f'jim_ifos.append({ifo_name})')
 
         jim_ifos[i].frequencies = bilby_ifo.frequency_array[freq_mask]
         jim_ifos[i].data = bilby_ifo.frequency_domain_strain[freq_mask]
@@ -71,12 +82,12 @@ for event_id in events:
     waveform = RippleIMRPhenomPv2(f_ref=reference_frequency)
 
     likelihood_1 = TransientLikelihoodFD(
-        jim_ifos, waveform=waveform, trigger_time=trigger_time, 
+        jim_ifos, waveform=waveform, trigger_time=trigger_time,
         duration=duration, post_trigger_duration=post_trigger_duration
     )
 
     likelihood_2 = TransientLikelihoodFD(
-        jim_ifos, waveform=waveform, trigger_time=trigger_time, 
+        jim_ifos, waveform=waveform, trigger_time=trigger_time,
         duration=strain_duration, post_trigger_duration=strain_post_trigger_duration
     )
 
@@ -90,8 +101,8 @@ for event_id in events:
         frequency_domain_source_model=lal_binary_black_hole,
         waveform_arguments=dict(
             waveform_approximant="IMRPhenomPv2",
-            reference_frequency=20,
-            minimum_frequency=20,
+            reference_frequency=reference_frequency,
+            minimum_frequency=f_min,
         )
     )
 
@@ -130,8 +141,8 @@ for event_id in events:
     diff_2 = diff_logLs["logL_bilby"] - diff_logLs["logL_jim_2"]
     max_abs_diff = np.max(np.abs([diff_1, diff_2]))
 
-    logL_min = np.min(diff_logLs[['logL_bilby', 'logL_jim_1', 'logL_jim_2']])
-    logL_max = np.max(diff_logLs[['logL_bilby', 'logL_jim_1', 'logL_jim_2']])
+    logL_min = np.min([diff_logLs[key] for key in ['logL_bilby', 'logL_jim_1', 'logL_jim_2']])
+    logL_max = np.max([diff_logLs[key] for key in ['logL_bilby', 'logL_jim_1', 'logL_jim_2']])
     logL_min_max = (logL_min, logL_max)
 
     # Update global logL min max.
@@ -140,13 +151,21 @@ for event_id in events:
     event_max_abs_diff = max(event_max_abs_diff, max_abs_diff)
     # Save result to event dict.
     event_dict[event_id] = diff_logLs
-    
+
     # Plot the likelihood comparison
-    fig, axes = plt.subplots(1, 2, figsize=(3.4 * 2.3, 3.4))
+    fig, axes = plt.subplots(1, 2, figsize=(3.4 * 2.3, 3.6),
+                             constrained_layout=True)
+
+    for ax in axes:
+        ax.set_xlabel(r'$\ln {\cal L}_{\rm Bilby}$')
+        ax.plot(logL_min_max, logL_min_max, color="black", linestyle="--", lw=1., label="1:1")
+        ax.set_xlim(*logL_min_max)
+        ax.set_ylim(*logL_min_max)
+        ax.grid(False)
 
     ax = axes[0]
     scat = ax.scatter(
-        diff_logLs['logL_bilby'], diff_logLs["logL_jim_1"], 
+        diff_logLs['logL_bilby'], diff_logLs["logL_jim_1"],
         c=diff_1, cmap='RdBu_r', s=5, alpha=0.9,
         vmin=-max_abs_diff, vmax=max_abs_diff
     )
@@ -155,27 +174,28 @@ for event_id in events:
 
     ax = axes[1]
     ax.scatter(
-        diff_logLs['logL_bilby'], diff_logLs["logL_jim_2"], 
+        diff_logLs['logL_bilby'], diff_logLs["logL_jim_2"],
         c=diff_2, cmap='RdBu_r', s=5, alpha=0.9,
         vmin=-max_abs_diff, vmax=max_abs_diff
     )
     ax.set_title(f'Use strain duration = {strain_duration:.6f} s')
-
-    for ax in axes:
-        ax.set_xlabel(r'$\ln {\cal L}_{\rm Bilby}$')
-
-    ax.plot(logL_min_max, logL_min_max, color="black", linestyle="--", lw=1., label="1:1")
-    ax.set_xlim(*logL_min_max)
-    ax.set_ylim(*logL_min_max)
 
     cbar = fig.colorbar(scat, ax=ax)
     cbar.set_label(r'$ \Delta \ln {\cal L} = \ln {\cal L}_{\rm Bilby} - \ln {\cal L}_{\rm Jim}$')
 
     fig.suptitle(event_id)
     fig.savefig(f'figures/compare_{event_id}_likelihoods.png', dpi=300)
+    plt.close(fig)
 
 # Plot the likelihood comparison for all events
-fig, axes = plt.subplots(1, 2, figsize=(3.4 * 2.3, 3.4))
+fig, axes = plt.subplots(1, 2, figsize=(3.4 * 2.3, 3.6), constrained_layout=True)
+
+event_logL_min_max = (event_logL_min, event_logL_max)
+for ax in axes:
+    ax.set_xlabel(r'$\ln {\cal L}_{\rm Bilby}$')
+    ax.plot(event_logL_min_max, event_logL_min_max, color="black", linestyle="--", lw=1., label="1:1")
+    ax.set_xlim(*event_logL_min_max)
+    ax.set_ylim(*event_logL_min_max)
 
 scat_kwargs = dict(
         cmap='RdYlBu', s=5, alpha=0.9, marker=".",
@@ -184,27 +204,20 @@ scat_kwargs = dict(
 for event, diff_logLs in event_dict.items():
     ax = axes[0]
     scat = ax.scatter(
-        diff_logLs['logL_bilby'], diff_logLs["logL_jim_1"], 
-        c=diff_logLs['logL_jim_1'] - diff_logLs["logL_bilby"], 
+        diff_logLs['logL_bilby'], diff_logLs["logL_jim_1"],
+        c=diff_logLs['logL_jim_1'] - diff_logLs["logL_bilby"],
         **scat_kwargs
     )
     ax = axes[1]
     ax.scatter(
-        diff_logLs['logL_bilby'], diff_logLs["logL_jim_2"], 
-        c=diff_logLs['logL_jim_2'] - diff_logLs["logL_bilby"], 
+        diff_logLs['logL_bilby'], diff_logLs["logL_jim_2"],
+        c=diff_logLs['logL_jim_2'] - diff_logLs["logL_bilby"],
         **scat_kwargs
     )
 
 axes[0].set_ylabel(r"$\ln{\cal L}_{\rm Jim}$")
-axes[0].set_title(f'Use input duration = {duration:.6f} s')
-axes[1].set_title(f'Use strain duration = {strain_duration:.6f} s')
-for ax in axes:
-    ax.set_xlabel(r'$\ln {\cal L}_{\rm Bilby}$')
-
-event_logL_min_max = (event_logL_min, event_logL_max)
-ax.plot(event_logL_min_max, event_logL_min_max, color="black", linestyle="--", lw=1., label="1:1")
-ax.set_xlim(*event_logL_min_max)
-ax.set_ylim(*event_logL_min_max)
+axes[0].set_title(f'Use input duration')
+axes[1].set_title(f'Use strain duration')
 
 cbar = fig.colorbar(scat, ax=axes[1])
 cbar.set_label(r'$ \Delta \ln {\cal L} = \ln {\cal L}_{\rm Bilby} - \ln {\cal L}_{\rm Jim}$')
