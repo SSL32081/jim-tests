@@ -22,11 +22,14 @@ from bilby.gw.source import lal_binary_black_hole
 
 ## We load in the pickle dump from the bilby run
 indir = Path('/home/thomas.ng/project/jim_GWTC3/bilby_runs/outdir/GW150914')
-with open(indir / 'data/GW150914_data0_1126259462-391_generation_data_dump.pickle', 'rb') as pickled_data:
+indir = Path.home() / 'random/for_thomas/jim_GWTC3/bilby_runs/outdir/GW150914'
+# with open(indir / 'data/GW150914_data0_1126259462-391_generation_data_dump.pickle', 'rb') as pickled_data:
+with open(indir / 'GW150914_data0_1126259462-391_generation_data_dump.pickle', 'rb') as pickled_data:
     bilby_gen_data = pickle.load(pickled_data)
 
 bilby_result = CBCResult.from_hdf5(
-    indir / 'result/GW150914_data0_1126259462-391_analysis_H1L1_result.hdf5'
+    # indir / 'result/GW150914_data0_1126259462-391_analysis_H1L1_result.hdf5'
+    indir / 'GW150914_data0_1126259462-391_analysis_H1L1_result.hdf5'
 )
 bilby_poste = bilby_result.posterior
 bilby_prior = bilby_result.priors
@@ -86,19 +89,22 @@ bilby_waveform_generator = WaveformGenerator(
 likelihood_bilby = GravitationalWaveTransient(
     interferometers=bilby_ifos,
     waveform_generator=bilby_waveform_generator,
-    time_marginalization=likelihood_kwargs['time_marginalization'],
-    phase_marginalization=likelihood_kwargs['phase_marginalization'],
-    distance_marginalization=likelihood_kwargs['distance_marginalization'],
+    # time_marginalization=likelihood_kwargs['time_marginalization'],
+    # phase_marginalization=likelihood_kwargs['phase_marginalization'],
+    # distance_marginalization=likelihood_kwargs['distance_marginalization'],
+    time_marginalization=False,
+    phase_marginalization=False,
+    distance_marginalization=False,
     reference_frame=likelihood_kwargs['reference_frame'],
     jitter_time=True,
     priors=bilby_prior.copy(),
 )
 
 ## Start sampling from the bilby posterior samples
-# n_samples = 100
-# samples_bilby = bilby_poste.sample(n_samples, random_state=42)
-n_samples = len(bilby_poste)
-samples_bilby = bilby_poste
+n_samples = 100
+samples_bilby = bilby_poste.sample(n_samples, random_state=42)
+# n_samples = len(bilby_poste)
+# samples_bilby = bilby_poste
 
 keys = ["chirp_mass", "symmetric_mass_ratio", "spin_1x", "spin_1y", "spin_1z", "spin_2x", "spin_2y", "spin_2z", "iota", "luminosity_distance", "phase", "psi", "ra", "dec"]
 jim_keys = ["M_c", "eta", "s1_x", "s1_y", "s1_z", "s2_x", "s2_y", "s2_z", "iota", "d_L", "phase_c", "psi", "ra", "dec"]
