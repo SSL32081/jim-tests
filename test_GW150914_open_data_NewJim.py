@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import os
-os.environ['JAX_PLATFORMS'] = 'cpu'
 os.environ["PATH"] = "/home/samson.leong/texlive/2023/bin/x86_64-linux:" + os.environ["PATH"]
 import pickle
 from pathlib import Path
@@ -10,6 +9,8 @@ print("Importing JAX")
 import jax
 import jax.numpy as jnp
 jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_platforms", 'cpu')
+jax.config.update("jax_traceback_filtering", 'off')
 print("Importing JAX successful")
 
 from jimgw.single_event.data import Data, PowerSpectrum
@@ -67,18 +68,18 @@ for i, jim_ifo in enumerate(jim_ifos):
     delta_t = bilby_ifo.time_array[1] - bilby_ifo.time_array[0]
     assert delta_t == 1.0 / sampling_frequency, f"{delta_t = } != {1.0 / sampling_frequency = }"
 
-    jim_data = Data.from_fd(
-        fd=bilby_ifo.frequency_domain_strain[freq_mask],
-        frequencies=bilby_ifo.frequency_array[freq_mask],
-        name=jim_ifo.name + '_data',
-        epoch=start_time
-    )
+    # jim_data = Data.from_fd(
+    #     fd=bilby_ifo.frequency_domain_strain[freq_mask],
+    #     frequencies=bilby_ifo.frequency_array[freq_mask],
+    #     name=jim_ifo.name + '_data',
+    #     epoch=strain_start_time
+    # )
     # The inferred sampling frequency within the data object 
     # is not necessarily the same as the one used to create the data
     jim_data = Data(
         td=bilby_ifo.time_domain_strain,
         delta_t=delta_t,
-        epoch=start_time,
+        epoch=strain_start_time,
         name=jim_ifo.name + '_data',
     )
     print(jim_data)
@@ -102,45 +103,18 @@ likelihood_1 = TransientLikelihoodFD(
     jim_ifos, waveform=jim_Pv2, trigger_time=trigger_time, 
     f_min=f_min, f_max=f_max,
     # post_trigger_duration=post_trigger_duration
-    post_trigger_duration=strain_post_trigger_duration
+    post_trigger_duration=post_trigger_duration
 )
 
-jim_ifos = [H1, L1]
-for i, jim_ifo in enumerate(jim_ifos):
-
-    bilby_ifo = bilby_ifos[i]
-    freq_mask = bilby_ifo.frequency_mask
-    delta_t = bilby_ifo.time_array[1] - bilby_ifo.time_array[0]
-
-    # The inferred sampling frequency within the data object 
-    # is not necessarily the same as the one used to create the data
-    jim_data = Data(
-        td=bilby_ifo.time_domain_strain,
-        delta_t=delta_t,
-        epoch=start_time,
-        name=jim_ifo.name + '_data',
-    )
-    jim_data.duration = (jim_data.n_time - 1) * jim_data.delta_t
-
-    jim_psd = PowerSpectrum(
-        values=bilby_ifo.power_spectral_density_array,
-        frequencies=bilby_ifo.frequency_array,
-        name=jim_ifo.name + '_psd',
-    )
-
-    jim_ifo.frequency_bounds = (bilby_ifo.minimum_frequency, bilby_ifo.maximum_frequency)
-    # Could these two be done by assignment?
-    # Like: jim_ifo.data = jim_data
-    jim_ifo.set_data(jim_data)
-    jim_ifo.set_psd(jim_psd)
+delta_t_post_merg = duration + strain_start_time - trigger_time
 
 likelihood_2 = TransientLikelihoodFD(
     jim_ifos, waveform=jim_Pv2, trigger_time=trigger_time, 
     f_min=f_min, f_max=f_max,
-    post_trigger_duration=strain_post_trigger_duration
+    post_trigger_duration=delta_t_post_merg
 )
 print('likelihood 1:', post_trigger_duration)
-print('likelihood 2:', strain_post_trigger_duration)
+print('likelihood 2:', delta_t_post_merg)
 
 likelihood_kwargs = bilby_result.meta_data['likelihood']
 ## Reconstruct Bilby waveform generator
