@@ -16,7 +16,7 @@ print("Importing JAX successful")
 from jimgw.single_event.data import Data, PowerSpectrum
 from jimgw.single_event.detector import H1, L1
 from jimgw.single_event.likelihood import TransientLikelihoodFD
-from jimgw.single_event.waveform import RippleIMRPhenomPv2
+from jimgw.single_event.waveform import RippleIMRPhenomPv2, RippleIMRPhenomD
 
 from bilby.gw.result import CBCResult
 from bilby.gw import WaveformGenerator, GravitationalWaveTransient
@@ -38,6 +38,8 @@ bilby_prior = bilby_result.priors
 
 ## Define detectors
 bilby_ifos = bilby_gen_data.interferometers
+_ = bilby_ifos[0].frequency_domain_strain
+_ = bilby_ifos[1].frequency_domain_strain
 
 sampling_frequency = float(bilby_gen_data.meta_data['command_line_args']['sampling_frequency'])
 reference_frequency = float(bilby_gen_data.meta_data['command_line_args']['reference_frequency'])
@@ -97,24 +99,24 @@ for i, jim_ifo in enumerate(jim_ifos):
     jim_ifo.set_psd(jim_psd)
 
 
+jim_D = RippleIMRPhenomD(f_ref=reference_frequency)
 jim_Pv2 = RippleIMRPhenomPv2(f_ref=reference_frequency)
 
 likelihood_1 = TransientLikelihoodFD(
-    jim_ifos, waveform=jim_Pv2, trigger_time=trigger_time, 
+    jim_ifos, waveform=jim_D, 
+    trigger_time=trigger_time, 
     f_min=f_min, f_max=f_max,
-    # post_trigger_duration=post_trigger_duration
-    post_trigger_duration=post_trigger_duration
 )
 
-delta_t_post_merg = duration + strain_start_time - trigger_time
+# delta_t_post_merg = duration + strain_start_time - trigger_time
 
 likelihood_2 = TransientLikelihoodFD(
-    jim_ifos, waveform=jim_Pv2, trigger_time=trigger_time, 
+    jim_ifos, waveform=jim_Pv2, 
+    trigger_time=trigger_time, 
     f_min=f_min, f_max=f_max,
-    post_trigger_duration=delta_t_post_merg
 )
-print('likelihood 1:', post_trigger_duration)
-print('likelihood 2:', delta_t_post_merg)
+# print('likelihood 1:', post_trigger_duration)
+# print('likelihood 2:', delta_t_post_merg)
 
 likelihood_kwargs = bilby_result.meta_data['likelihood']
 ## Reconstruct Bilby waveform generator
