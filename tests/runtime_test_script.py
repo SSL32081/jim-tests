@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import pickle
 from pathlib import Path
-import numpy as onp
 import argparse
 import re
 
@@ -12,6 +11,19 @@ parser.add_argument('--batch_size', type=int, required=True, help='Batch size fo
 parser.add_argument('--data_dump_path', type=str, required=True, help='Path to the bilby generation data dump pickle file')
 
 args = parser.parse_args()
+
+print("Importing JAX")
+import jax
+import jax.numpy as np
+jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_platforms", 'cpu')
+jax.config.update("jax_traceback_filtering", 'off')
+print("Importing JAX successful")
+
+from jimgw.core.single_event.data import Data, PowerSpectrum
+from jimgw.core.single_event.detector import get_H1, get_L1
+from jimgw.core.single_event.likelihood import BaseTransientLikelihoodFD, HeterodynedTransientLikelihoodFD
+from jimgw.core.single_event.waveform import RippleIMRPhenomPv2
 
 n_samples = args.n_samples
 batch_size = args.batch_size
@@ -28,35 +40,6 @@ if match:
 print(f"Running for event: {event_name}")
 print(f"Running with: n_samples={n_samples}, batch_size={batch_size}")
 print(f"Data dump path: {data_dump_path}")
-
-print("Importing JAX")
-import jax
-import jax.numpy as np
-jax.config.update("jax_enable_x64", True)
-jax.config.update("jax_platforms", 'cpu')
-jax.config.update("jax_traceback_filtering", 'off')
-print("Importing JAX successful")
-
-from jimgw.core.single_event.data import Data, PowerSpectrum
-from jimgw.core.single_event.detector import get_H1, get_L1
-from jimgw.core.single_event.likelihood import BaseTransientLikelihoodFD, HeterodynedTransientLikelihoodFD
-from jimgw.core.single_event.waveform import RippleIMRPhenomPv2
-from jimgw.core.single_event.gps_times import greenwich_mean_sidereal_time as compute_gmst
-from jimgw.core.single_event.transforms import (
-    SkyFrameToDetectorFrameSkyPositionTransform,
-    MassRatioToSymmetricMassRatioTransform,
-    SphereSpinToCartesianSpinTransform
-)
-from jimgw.core.transforms import BoundToUnbound
-from jimgw.core.prior import (
-    UniformPrior, UniformSpherePrior, 
-    SinePrior, CosinePrior, 
-    PowerLawPrior, RayleighPrior, CombinePrior
-)
-
-from bilby.gw.result import CBCResult
-from bilby.gw import WaveformGenerator, GravitationalWaveTransient
-from bilby.gw.source import lal_binary_black_hole
 
 ## We load in the pickle dump from the bilby run
 print(f"Loading data from {data_dump_path}")
